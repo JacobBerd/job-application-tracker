@@ -4,6 +4,22 @@ A full-stack web application for tracking a job search: the companies you're int
 
 Built with **MySQL**, **Python / Flask**, and **HTML / CSS (Bootstrap 5)**.
 
+## Quick start (about 5 minutes)
+
+You need **Python 3.10+** and a running **MySQL 8.0+** server. Run these commands from a terminal:
+
+```bash
+git clone https://github.com/JacobBerd/job-application-tracker.git
+cd job-application-tracker
+pip install -r requirements.txt
+python setup_db.py
+python app.py
+```
+
+Then open **http://127.0.0.1:5000**.
+
+`setup_db.py` asks for your MySQL username and password (typing is hidden), saves them to a local `.env` file that git ignores, and creates the `job_tracker` database with sample data. You don't need the `mysql` command-line tool or Workbench. If anything goes wrong, see [Troubleshooting](#troubleshooting). The detailed steps below explain the manual alternative.
+
 ## Features
 
 - **Dashboard**: record counts, applications by status, response and interview rates, offers, average salary, upcoming interviews, recent applications, and the most requested skills.
@@ -33,6 +49,7 @@ job-application-tracker/
 ├── app.py              # Flask routes, validation, error handling
 ├── database.py         # MySQL connection and all SQL queries
 ├── schema.sql          # Creates the job_tracker database, tables, and sample data
+├── setup_db.py         # One-step setup: saves credentials to .env and runs schema.sql
 ├── requirements.txt    # Python dependencies
 ├── .env.example        # Template for database credentials
 ├── templates/          # HTML templates (Jinja2)
@@ -76,25 +93,9 @@ git clone https://github.com/JacobBerd/job-application-tracker.git
 cd job-application-tracker
 ```
 
-### 3. Create the database
+### 3. Install dependencies
 
-From the project folder, run `schema.sql`. It creates the `job_tracker` database and its four tables, and loads sample data.
-
-```bash
-mysql -u root -p < schema.sql
-```
-
-> **Windows (PowerShell):** `<` redirection isn't supported, and `mysql` may not be on your PATH. Use:
->
-> ```powershell
-> Get-Content schema.sql -Raw | & "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p
-> ```
->
-> Or open `schema.sql` in **MySQL Workbench** and click **Execute** (the lightning bolt icon).
-
-**Warning:** `schema.sql` starts with `DROP DATABASE IF EXISTS job_tracker`, so re-running it resets the database to the sample data.
-
-### 4. Create a virtual environment and install dependencies
+Using a virtual environment is optional but recommended:
 
 ```bash
 python -m venv venv
@@ -107,37 +108,55 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 5. Configure database credentials
+### 4. Set up the database
 
-Copy the example environment file and enter your MySQL password:
+**Option A (recommended): run the setup script.**
 
 ```bash
-# Windows
-copy .env.example .env
-# macOS / Linux
-cp .env.example .env
+python setup_db.py
 ```
 
-Then edit `.env`:
+The script:
+1. Asks for your MySQL username (default `root`) and password, and retries if they're wrong.
+2. Saves them to `.env`. That file is in `.gitignore`, so passwords are never committed.
+3. Runs `schema.sql` to create the `job_tracker` database, its four tables, and the sample data.
 
-```
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=your_mysql_password
-DB_NAME=job_tracker
-SECRET_KEY=any-random-string
-```
+If `job_tracker` already exists, it asks before resetting it. Use `python setup_db.py --yes` to skip the question.
 
-`.env` is listed in `.gitignore`, so your password is never committed.
+**Option B: set it up manually.**
 
-### 6. Run the application
+1. Run `schema.sql`, either in **MySQL Workbench** (open the file, then click the lightning bolt **Execute** button) or from a terminal:
+
+   ```bash
+   mysql -u root -p < schema.sql
+   ```
+
+   In Windows PowerShell, `<` isn't supported and `mysql` is often not on the PATH. Use this instead:
+
+   ```powershell
+   Get-Content schema.sql -Raw | & "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p
+   ```
+
+2. Copy `.env.example` to `.env` (Windows: `copy .env.example .env`, macOS/Linux: `cp .env.example .env`). Then set `DB_PASSWORD` (and `DB_USER`, if you don't use `root`):
+
+   ```
+   DB_HOST=localhost
+   DB_PORT=3306
+   DB_USER=root
+   DB_PASSWORD=your_mysql_password
+   DB_NAME=job_tracker
+   SECRET_KEY=any-random-string
+   ```
+
+**Warning:** `schema.sql` starts with `DROP DATABASE IF EXISTS job_tracker`, so re-running it, by either option, resets the database to the sample data.
+
+### 5. Run the application
 
 ```bash
 python app.py
 ```
 
-Open **http://127.0.0.1:5000** in your browser.
+Open **http://127.0.0.1:5000** in your browser. If something is misconfigured, the page explains what to fix.
 
 ## Using the app
 
@@ -152,8 +171,10 @@ Open **http://127.0.0.1:5000** in your browser.
 
 | Problem | Fix |
 |---------|-----|
-| `Database error ... Access denied for user 'root'@'localhost'` | The password in `.env` is wrong. Fix `DB_PASSWORD` and restart the app. |
-| `Unknown database 'job_tracker'` | Run `schema.sql` (step 3). |
-| `Can't connect to MySQL server` | Start the MySQL service (Windows: Services, then **MySQL80**, then Start). |
-| `ModuleNotFoundError: No module named 'flask'` | Activate the virtual environment and run `pip install -r requirements.txt`. |
-| `'mysql' is not recognized` (Windows) | Use the full path shown in step 3, or run the script from MySQL Workbench. |
+| `Access denied for user 'root'@'localhost'` | The MySQL password in `.env` is wrong. Run `python setup_db.py` again to re-enter it, then restart the app. |
+| `Unknown database 'job_tracker'` | Run `python setup_db.py` (or `schema.sql`, step 4). |
+| `Can't connect to MySQL server` | Start the MySQL service (Windows: Services, then **MySQL80**, then Start; macOS: `brew services start mysql`). |
+| `ModuleNotFoundError: No module named 'flask'` (or `'mysql'`) | Run `pip install -r requirements.txt` (with the virtual environment activated, if you made one). |
+| `'pip' is not recognized` | Use `python -m pip install -r requirements.txt`. On macOS/Linux, try `python3` / `pip3`. |
+| `'mysql' is not recognized` (Windows) | Use `python setup_db.py` instead, or the full path shown in step 4. |
+| Port 5000 is already in use (common on macOS because of AirPlay) | Run `flask --app app run --port 5001` and open http://127.0.0.1:5001. |

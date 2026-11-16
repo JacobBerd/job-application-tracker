@@ -5,6 +5,7 @@ import re
 from datetime import date
 
 import mysql.connector
+from mysql.connector import errorcode
 from flask import Flask, abort, flash, redirect, render_template, request, url_for
 
 import database as db
@@ -592,17 +593,35 @@ def not_found(_error):
     ), 404
 
 
+DATABASE_FIXES = {
+    errorcode.ER_ACCESS_DENIED_ERROR: "MySQL rejected the username or password. Run "
+    "\"python setup_db.py\" to enter the correct credentials, or edit DB_USER / DB_PASSWORD "
+    "in the .env file, then restart the app.",
+    errorcode.ER_BAD_DB_ERROR: "The job_tracker database does not exist yet. Run "
+    "\"python setup_db.py\" (or run schema.sql in MySQL), then refresh this page.",
+    errorcode.ER_NO_SUCH_TABLE: "The job_tracker tables are missing. Run "
+    "\"python setup_db.py\" (or run schema.sql in MySQL), then refresh this page.",
+    2003: "The app could not reach the MySQL server. Make sure MySQL is running "
+    "(Windows: Services > MySQL80 > Start), then refresh this page.",
+}
+
+
 @app.errorhandler(mysql.connector.Error)
 def database_error(error):
     app.logger.exception("Database error")
     return render_template(
         "error.html",
         title="Database error",
-        message="Something went wrong talking to MySQL. Check that the server is running "
-        "and that the settings in your .env file are correct.",
+        message=DATABASE_FIXES.get(
+            error.errno,
+            "Something went wrong talking to MySQL. Check that the server is running "
+            "and that the settings in your .env file are correct.",
+        ),
         detail=str(error),
     ), 500
 
 
 if __name__ == "__main__":
+    if not os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")):
+        print("\nNo .env file found. Run \"python setup_db.py\" first to set up MySQL.\n")
     app.run(debug=True)
