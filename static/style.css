@@ -273,6 +273,69 @@ a:hover {
     border-bottom: 1px solid #e9ecef;
 }
 
+/* Job Match */
+.skill-suggestion {
+    cursor: pointer;
+    background-color: #fff;
+}
+
+.skill-suggestion:hover {
+    background-color: #e8eefc;
+}
+
+.skill-chip-matched {
+    background-color: #d3f9d8;
+    border-color: #b2f2bb;
+    color: #2b8a3e;
+}
+
+.skill-chip-missing {
+    background-color: #ffe3e3;
+    border-color: #ffc9c9;
+    color: #c92a2a;
+}
+
+.match-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 1rem;
+}
+
+.match-card {
+    border-left: 5px solid #adb5bd !important;
+}
+
+.match-rank {
+    font-weight: 700;
+    color: #6c757d;
+    margin-right: 0.25rem;
+}
+
+.match-percent {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.match-progress {
+    height: 0.6rem;
+}
+
+.match-high   { border-left-color: #2f9e44 !important; }
+.match-medium { border-left-color: #1c7ed6 !important; }
+.match-low    { border-left-color: #f08c00 !important; }
+.match-none   { border-left-color: #e03131 !important; }
+
+.match-high   .progress-bar { background-color: #2f9e44; }
+.match-medium .progress-bar { background-color: #1c7ed6; }
+.match-low    .progress-bar { background-color: #f08c00; }
+
+.match-high   .match-percent { color: #2f9e44; }
+.match-medium .match-percent { color: #1c7ed6; }
+.match-low    .match-percent { color: #f08c00; }
+.match-none   .match-percent { color: #e03131; }
+
 /* JSON-backed form sections */
 .json-fieldset {
     border: 1px dashed #cdd9fa;

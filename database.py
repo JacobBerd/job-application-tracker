@@ -330,6 +330,64 @@ def delete_contact(contact_id):
 
 
 # ---------------------------------------------------------------
+# Job Match
+# ---------------------------------------------------------------
+def calculate_match(user_skills, job_skills):
+    """Compare a user's skills to a job's required skills (case-insensitive)."""
+    user_lookup = {skill.lower() for skill in user_skills}
+    matched = [skill for skill in job_skills if skill.lower() in user_lookup]
+    missing = [skill for skill in job_skills if skill.lower() not in user_lookup]
+    total = len(job_skills)
+    return {
+        "matched": matched,
+        "missing": missing,
+        "matched_count": len(matched),
+        "total": total,
+        # Round half up so 2.5% -> 3%, unlike Python's round() which rounds half to even.
+        "percent": int(len(matched) * 100 / total + 0.5) if total else 0,
+    }
+
+
+def match_jobs(user_skills, min_percent=0, job_type=None):
+    """Rank every job that lists required skills by how well user_skills cover them."""
+    results = []
+    for job in get_jobs(job_type=job_type):
+        if not job["skills"]:
+            continue
+        match = calculate_match(user_skills, job["skills"])
+        if match["percent"] >= min_percent:
+            results.append({**job, **match})
+    results.sort(key=lambda r: (-r["percent"], -r["matched_count"], r["job_title"].lower()))
+    return results
+
+
+def skills_to_learn(results, limit=5):
+    """Most common missing skills across the matched jobs."""
+    counts = {}
+    for result in results:
+        for skill in result["missing"]:
+            key = skill.lower()
+            name, count = counts.get(key, (skill, 0))
+            counts[key] = (name, count + 1)
+    ranked = sorted(counts.values(), key=lambda item: (-item[1], item[0].lower()))
+    return [{"skill": name, "job_count": count} for name, count in ranked[:limit]]
+
+
+def get_all_skills():
+    """Every distinct skill listed in any job's requirements JSON."""
+    rows = query_all("""
+        SELECT DISTINCT s.skill
+        FROM jobs j,
+        JSON_TABLE(j.requirements, '$.skills[*]' COLUMNS (
+            skill VARCHAR(50) PATH '$' NULL ON ERROR
+        )) AS s
+        WHERE s.skill IS NOT NULL
+        ORDER BY s.skill
+    """)
+    return [row["skill"] for row in rows]
+
+
+# ---------------------------------------------------------------
 # Dashboard
 # ---------------------------------------------------------------
 def _percent(part, whole):

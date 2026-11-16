@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% from "_macros.html" import job_type_badge, salary_range %}
+{% set active_page = "job_match" %}
+{% block title %}Job Match{% endblock %}
+
+{% macro match_level(percent) -%}
+{% if percent >= 75 %}high{% elif percent >= 50 %}medium{% elif percent > 0 %}low{% else %}none{% endif %}
+{%- endmacro %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-0"><i class="bi bi-stars me-2"></i>Job Match</h1>
+        <p class="text-muted mb-0">Enter your skills to see which jobs fit you best.</p>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" action="{{ url_for('job_match') }}">
+            <div class="row g-3 align-items-end">
+                <div class="col-lg-6">
+                    <label for="skills" class="form-label fw-semibold">Your skills</label>
+                    <input type="text" class="form-control form-control-lg" id="skills" name="skills"
+                           value="{{ skills_text }}" placeholder="Python, SQL, Flask" autofocus>
+                    <div class="form-text">Separate skills with commas. Matching ignores upper/lower case.</div>
+                </div>
+                <div class="col-sm-4 col-lg-2">
+                    <label for="min" class="form-label">Minimum match</label>
+                    <select class="form-select" id="min" name="min">
+                        {% for option in min_options %}
+                        <option value="{{ option }}" {% if option == min_percent %}selected{% endif %}>{{ option }}%{% if option == 0 %} (show all){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-sm-4 col-lg-2">
+                    <label for="type" class="form-label">Job type</label>
+                    <select class="form-select" id="type" name="type">
+                        <option value="">Any type</option>
+                        {% for t in job_types %}
+                        <option value="{{ t }}" {% if t == job_type %}selected{% endif %}>{{ t }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-sm-4 col-lg-2 d-grid">
+                    <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-search"></i> Match</button>
+                </div>
+            </div>
+        </form>
+
+        {% if all_skills %}
+        <div class="mt-3">
+            <span class="small text-muted me-1">Skills listed in your jobs (click to add):</span>
+            {% for skill in all_skills %}
+            <button type="button" class="skill-chip skill-suggestion" data-skill="{{ skill }}">{{ skill }}</button>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if results is not none %}
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="mb-3">
+            <span class="fw-semibold">Your skills:</span>
+            {% for skill in user_skills %}<span class="skill-chip">{{ skill }}</span>{% endfor %}
+        </div>
+        <h2 class="h5">Matching jobs ({{ results|length }})</h2>
+
+        {% if results %}
+        <ol class="match-list">
+            {% for r in results %}
+            <li class="card shadow-sm match-card match-{{ match_level(r.percent) }}">
+                <div class="card-body">
+                    <div class="d-flex flex-wrap justify-content-between gap-2">
+                        <div>
+                            <span class="match-rank">{{ loop.index }}.</span>
+                            <a href="{{ url_for('job_detail', job_id=r.job_id) }}" class="fw-semibold fs-5">{{ r.job_title }}</a>
+                            <span class="text-muted">at</span>
+                            <a href="{{ url_for('company_detail', company_id=r.company_id) }}" class="text-body">{{ r.company_name }}</a>
+                            {{ job_type_badge(r.job_type) }}
+                        </div>
+                        <div class="text-end">
+                            <span class="match-percent">{{ r.percent }}%</span>
+                            <span class="text-muted small">({{ r.matched_count }}/{{ r.total }} skills)</span>
+                        </div>
+                    </div>
+                    <div class="progress match-progress my-2" role="progressbar" aria-label="Match percentage"
+                         aria-valuenow="{{ r.percent }}" aria-valuemin="0" aria-valuemax="100">
+                        <div class="progress-bar" style="width: {{ r.percent }}%"></div>
+                    </div>
+                    <div class="small">
+                        {% if r.matched %}
+                        <div><i class="bi bi-check-circle-fill text-success"></i> <span class="text-muted">Matched:</span>
+                            {% for skill in r.matched %}<span class="skill-chip skill-chip-matched">{{ skill }}</span>{% endfor %}
+                        </div>
+                        {% endif %}
+                        {% if r.missing %}
+                        <div><i class="bi bi-x-circle-fill text-danger"></i> <span class="text-muted">Missing:</span>
+                            {% for skill in r.missing %}<span class="skill-chip skill-chip-missing">{{ skill }}</span>{% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mt-2 small text-muted">
+                        <span>{{ salary_range(r.salary_min, r.salary_max) }}</span>
+                        {% if r.application_count %}
+                        <a href="{{ url_for('job_detail', job_id=r.job_id) }}"><i class="bi bi-check2-all"></i> Already applied</a>
+                        {% else %}
+                        <a href="{{ url_for('add_application', job_id=r.job_id) }}"><i class="bi bi-send"></i> Log an application</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ol>
+        {% else %}
+        <div class="card shadow-sm">
+            <div class="empty-state">
+                <i class="bi bi-emoji-neutral"></i>
+                <p>No jobs meet that match level. Try lowering the minimum match or adding more skills.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-lightbulb me-1"></i> Skills to learn next</div>
+            <div class="card-body">
+                {% for s in skills_to_learn %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="skill-chip skill-chip-missing mb-0">{{ s.skill }}</span>
+                    <span class="small text-muted">needed by {{ s.job_count }} job{{ '' if s.job_count == 1 else 's' }}</span>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">You have every skill these jobs ask for.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const input = document.getElementById("skills");
+        document.querySelectorAll(".skill-suggestion").forEach(function (chip) {
+            chip.addEventListener("click", function () {
+                const skills = input.value.split(",").map(s => s.trim()).filter(Boolean);
+                const skill = chip.dataset.skill;
+                if (!skills.some(s => s.toLowerCase() === skill.toLowerCase())) {
+                    skills.push(skill);
+                }
+                input.value = skills.join(", ");
+                input.focus();
+            });
+        });
+    })();
+</script>
+{% endblock %}

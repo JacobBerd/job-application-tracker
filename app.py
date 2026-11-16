@@ -536,6 +536,43 @@ def delete_contact(contact_id):
 
 
 # ---------------------------------------------------------------
+# Job Match
+# ---------------------------------------------------------------
+MIN_MATCH_OPTIONS = (0, 25, 50, 75, 100)
+
+
+@app.route("/job-match", methods=["GET", "POST"])
+def job_match():
+    skills_text = request.values.get("skills", "").strip()
+    min_percent = request.values.get("min", 0, type=int)
+    job_type = request.values.get("type", "").strip()
+    if min_percent not in MIN_MATCH_OPTIONS:
+        min_percent = 0
+    if job_type not in db.JOB_TYPES:
+        job_type = ""
+
+    user_skills = db.split_skills(skills_text)
+    results = None
+    if user_skills:
+        results = db.match_jobs(user_skills, min_percent, job_type or None)
+    elif "skills" in request.values:
+        flash("Enter at least one skill to find matching jobs.", "warning")
+
+    return render_template(
+        "job_match.html",
+        skills_text=skills_text,
+        user_skills=user_skills,
+        min_percent=min_percent,
+        job_type=job_type,
+        results=results,
+        skills_to_learn=db.skills_to_learn(results) if results else [],
+        all_skills=db.get_all_skills(),
+        min_options=MIN_MATCH_OPTIONS,
+        job_types=db.JOB_TYPES,
+    )
+
+
+# ---------------------------------------------------------------
 # Dashboard
 # ---------------------------------------------------------------
 @app.route("/")

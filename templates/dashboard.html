@@ -11,6 +11,7 @@
     <div class="d-flex gap-2 flex-wrap">
         <a href="{{ url_for('add_application') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Log application</a>
         <a href="{{ url_for('add_job') }}" class="btn btn-outline-primary"><i class="bi bi-briefcase"></i> Add job</a>
+        <a href="{{ url_for('job_match') }}" class="btn btn-outline-primary"><i class="bi bi-stars"></i> Find matching jobs</a>
     </div>
 </div>
 
@@ -147,7 +148,7 @@
             <div class="card-header bg-white fw-semibold"><i class="bi bi-bar-chart me-1"></i> Most requested skills</div>
             <div class="card-body">
                 {% for s in stats.top_skills %}
-                <span class="skill-chip">{{ s.skill }} <span class="skill-count">{{ s.job_count }}</span></span>
+                <a href="{{ url_for('job_match', skills=s.skill) }}" class="skill-chip text-decoration-none" title="Find jobs needing {{ s.skill }}">{{ s.skill }} <span class="skill-count">{{ s.job_count }}</span></a>
                 {% else %}
                 <span class="text-muted">Add skills to your jobs to see trends here.</span>
                 {% endfor %}
