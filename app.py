@@ -540,7 +540,7 @@ def delete_contact(contact_id):
 # ---------------------------------------------------------------
 @app.route("/")
 def dashboard():
-    return redirect(url_for("companies"))
+    return render_template("dashboard.html", stats=db.get_dashboard_stats())
 
 
 # ---------------------------------------------------------------

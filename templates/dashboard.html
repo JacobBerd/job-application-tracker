@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge %}
+{% set active_page = "dashboard" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-0">Dashboard</h1>
+        <p class="text-muted mb-0">An overview of your job search.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('add_application') }}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Log application</a>
+        <a href="{{ url_for('add_job') }}" class="btn btn-outline-primary"><i class="bi bi-briefcase"></i> Add job</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    {% set cards = [
+        ('companies', 'Companies', 'building', stats.counts.companies),
+        ('jobs', 'Jobs tracked', 'briefcase', stats.counts.jobs),
+        ('applications', 'Applications', 'send', stats.counts.applications),
+        ('contacts', 'Contacts', 'person-lines-fill', stats.counts.contacts),
+    ] %}
+    {% for endpoint, label, icon, value in cards %}
+    <div class="col-6 col-lg-3">
+        <a href="{{ url_for(endpoint) }}" class="card shadow-sm stat-card h-100 text-decoration-none">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="stat-icon"><i class="bi bi-{{ icon }}"></i></div>
+                <div>
+                    <div class="stat-value">{{ value }}</div>
+                    <div class="stat-label">{{ label }}</div>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold">Applications by status</div>
+            <div class="card-body">
+                {% if stats.counts.applications %}
+                <div class="progress status-progress mb-3" role="img" aria-label="Applications by status">
+                    {% for status, count in stats.by_status.items() if count %}
+                    <div class="progress-bar status-{{ status|lower }}" style="width: {{ stats.status_percent[status] }}%"
+                         title="{{ status }}: {{ count }}"></div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <div class="row g-2">
+                    {% for status, count in stats.by_status.items() %}
+                    <div class="col-6 col-md-4">
+                        <a href="{{ url_for('applications', status=status) }}" class="status-tile">
+                            {{ status_badge(status) }}
+                            <span class="fw-semibold">{{ count }}</span>
+                            <span class="text-muted small">({{ stats.status_percent[status] }}%)</span>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold">Key metrics</div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between">
+                    <span><i class="bi bi-hourglass-split me-2 text-muted"></i>Active applications</span>
+                    <strong>{{ stats.active }}</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span><i class="bi bi-reply me-2 text-muted"></i>Response rate</span>
+                    <strong>{{ stats.response_rate }}%</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span><i class="bi bi-people me-2 text-muted"></i>Reached interview or offer</span>
+                    <strong>{{ stats.interview_rate }}%</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span><i class="bi bi-trophy me-2 text-muted"></i>Offers received</span>
+                    <strong>{{ stats.offers }}</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <span><i class="bi bi-cash-stack me-2 text-muted"></i>Average salary midpoint</span>
+                    <strong>{{ stats.average_salary|money if stats.average_salary else '&mdash;'|safe }}</strong>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">Recent applications</span>
+                <a href="{{ url_for('applications') }}" class="small">View all</a>
+            </div>
+            {% if stats.recent_applications %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <tbody>
+                        {% for a in stats.recent_applications %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('application_detail', application_id=a.application_id) }}" class="fw-semibold">{{ a.job_title }}</a>
+                                <div class="small text-muted">{{ a.company_name }}</div>
+                            </td>
+                            <td class="text-nowrap small text-muted">{{ a.application_date|nice_date }}</td>
+                            <td class="text-end">{{ status_badge(a.status) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="card-body text-muted">No applications yet. <a href="{{ url_for('add_application') }}">Log your first one</a>.</div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-lg-5 d-flex flex-column gap-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-calendar-event me-1"></i> Upcoming interviews</div>
+            {% if stats.upcoming_interviews %}
+            <ul class="list-group list-group-flush">
+                {% for i in stats.upcoming_interviews %}
+                <li class="list-group-item d-flex gap-3 align-items-center">
+                    <div class="date-chip">
+                        <span class="month">{{ i.interview_date.strftime('%b') }}</span>
+                        <span class="day">{{ i.interview_date.day }}</span>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('application_detail', application_id=i.application_id) }}" class="fw-semibold">{{ i.interview_type or 'Interview' }}</a>
+                        <div class="small text-muted">{{ i.job_title }} @ {{ i.company_name }}{% if i.interviewer %} &middot; {{ i.interviewer }}{% endif %}</div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="card-body text-muted">No upcoming interviews scheduled.</div>
+            {% endif %}
+        </div>
+        <div class="card shadow-sm">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-bar-chart me-1"></i> Most requested skills</div>
+            <div class="card-body">
+                {% for s in stats.top_skills %}
+                <span class="skill-chip">{{ s.skill }} <span class="skill-count">{{ s.job_count }}</span></span>
+                {% else %}
+                <span class="text-muted">Add skills to your jobs to see trends here.</span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

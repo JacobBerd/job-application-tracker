@@ -327,3 +327,83 @@ def update_contact(contact_id, data):
 
 def delete_contact(contact_id):
     execute("DELETE FROM contacts WHERE contact_id = %s", (contact_id,))
+
+
+# ---------------------------------------------------------------
+# Dashboard
+# ---------------------------------------------------------------
+def _percent(part, whole):
+    return round(part * 100 / whole) if whole else 0
+
+
+def get_dashboard_stats():
+    counts = query_one("""
+        SELECT (SELECT COUNT(*) FROM companies)    AS companies,
+               (SELECT COUNT(*) FROM jobs)         AS jobs,
+               (SELECT COUNT(*) FROM applications) AS applications,
+               (SELECT COUNT(*) FROM contacts)     AS contacts
+    """)
+
+    by_status = {status: 0 for status in APPLICATION_STATUSES}
+    for row in query_all("SELECT status, COUNT(*) AS total FROM applications GROUP BY status"):
+        by_status[row["status"]] = row["total"]
+
+    total = counts["applications"]
+    heard_back = total - by_status["Applied"] - by_status["Withdrawn"]
+    reached_interview = by_status["Interview"] + by_status["Offer"]
+    active = by_status["Applied"] + by_status["Screening"] + by_status["Interview"]
+
+    salary = query_one("""
+        SELECT ROUND(AVG((salary_min + salary_max) / 2)) AS average_midpoint
+        FROM jobs
+        WHERE salary_min IS NOT NULL AND salary_max IS NOT NULL
+    """)
+
+    upcoming_interviews = query_all("""
+        SELECT a.application_id, j.job_title, c.company_name,
+               r.interview_date, r.interview_type, r.interviewer
+        FROM applications a
+        JOIN jobs j ON j.job_id = a.job_id
+        JOIN companies c ON c.company_id = j.company_id,
+        JSON_TABLE(a.interview_data, '$.rounds[*]' COLUMNS (
+            interview_date DATE         PATH '$.date'        NULL ON EMPTY NULL ON ERROR,
+            interview_type VARCHAR(50)  PATH '$.type'        NULL ON EMPTY NULL ON ERROR,
+            interviewer    VARCHAR(100) PATH '$.interviewer' NULL ON EMPTY NULL ON ERROR
+        )) AS r
+        WHERE r.interview_date >= CURDATE()
+          AND a.status NOT IN ('Rejected', 'Withdrawn')
+        ORDER BY r.interview_date
+        LIMIT 5
+    """)
+
+    top_skills = query_all("""
+        SELECT s.skill, COUNT(*) AS job_count
+        FROM jobs j,
+        JSON_TABLE(j.requirements, '$.skills[*]' COLUMNS (
+            skill VARCHAR(50) PATH '$' NULL ON ERROR
+        )) AS s
+        WHERE s.skill IS NOT NULL
+        GROUP BY s.skill
+        ORDER BY job_count DESC, s.skill
+        LIMIT 10
+    """)
+
+    recent_applications = [
+        _with_interviews(a) for a in query_all(
+            APPLICATION_SELECT + " ORDER BY a.application_date DESC, a.application_id DESC LIMIT 5"
+        )
+    ]
+
+    return {
+        "counts": counts,
+        "by_status": by_status,
+        "status_percent": {s: _percent(n, total) for s, n in by_status.items()},
+        "active": active,
+        "response_rate": _percent(heard_back, total),
+        "interview_rate": _percent(reached_interview, total),
+        "offers": by_status["Offer"],
+        "average_salary": salary["average_midpoint"],
+        "upcoming_interviews": upcoming_interviews,
+        "top_skills": top_skills,
+        "recent_applications": recent_applications,
+    }
