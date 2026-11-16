@@ -135,6 +135,55 @@ a:hover {
     vertical-align: middle;
 }
 
+/* Application status badges */
+.status-badge {
+    font-weight: 600;
+    vertical-align: middle;
+}
+
+.status-applied   { background-color: #dbe7ff; color: #1e3fae; }
+.status-screening { background-color: #e5dbff; color: #5f3dc4; }
+.status-interview { background-color: #fff3bf; color: #8a6100; }
+.status-offer     { background-color: #d3f9d8; color: #2b8a3e; }
+.status-rejected  { background-color: #ffe3e3; color: #c92a2a; }
+.status-withdrawn { background-color: #e9ecef; color: #495057; }
+
+/* Interview timeline */
+.timeline {
+    list-style: none;
+    padding-left: 1.25rem;
+    margin: 0;
+    border-left: 2px solid #cdd9fa;
+}
+
+.timeline li {
+    position: relative;
+    padding: 0 0 1.25rem 1rem;
+}
+
+.timeline li:last-child {
+    padding-bottom: 0;
+}
+
+.timeline li::before {
+    content: "";
+    position: absolute;
+    left: -1.95rem;
+    top: 0.3rem;
+    width: 0.8rem;
+    height: 0.8rem;
+    border-radius: 50%;
+    background-color: var(--app-primary);
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px #cdd9fa;
+}
+
+.interview-round {
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
 /* JSON-backed form sections */
 .json-fieldset {
     border: 1px dashed #cdd9fa;

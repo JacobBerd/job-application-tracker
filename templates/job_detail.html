@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import delete_button, external_link, salary_range, skill_chips, job_type_badge, or_dash %}
+{% from "_macros.html" import delete_button, external_link, salary_range, skill_chips, job_type_badge, or_dash, status_badge %}
 {% set active_page = "jobs" %}
 {% block title %}{{ job.job_title }}{% endblock %}
 {% block content %}
@@ -55,6 +55,26 @@
                     <dd>{{ or_dash(job.requirements.education) }}</dd>
                 </dl>
             </div>
+        </div>
+    </div>
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">Applications ({{ applications|length }})</span>
+                <a href="{{ url_for('add_application', job_id=job.job_id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-lg"></i> Log application</a>
+            </div>
+            {% if applications %}
+            <ul class="list-group list-group-flush">
+                {% for a in applications %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <a href="{{ url_for('application_detail', application_id=a.application_id) }}">Applied {{ a.application_date|nice_date }}</a>
+                    <span>{{ status_badge(a.status) }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="card-body text-muted">You haven't applied to this job yet.</div>
+            {% endif %}
         </div>
     </div>
 </div>

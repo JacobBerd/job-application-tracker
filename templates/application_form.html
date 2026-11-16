@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% set active_page = "applications" %}
+{% set editing = application_id is not none %}
+{% block title %}{{ 'Edit' if editing else 'Add' }} Application{% endblock %}
+
+{% macro round_row(interview, interview_types) -%}
+<div class="interview-round row g-2 align-items-end">
+    <div class="col-md-3">
+        <label class="form-label small">Date <span class="text-danger">*</span></label>
+        <input type="date" class="form-control form-control-sm" name="round_date" value="{{ interview.date or '' }}">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small">Type <span class="text-danger">*</span></label>
+        <input type="text" class="form-control form-control-sm" name="round_type" list="interviewTypes" maxlength="50"
+               value="{{ interview.type or '' }}" placeholder="Phone Screen">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small">Interviewer</label>
+        <input type="text" class="form-control form-control-sm" name="round_interviewer" maxlength="100"
+               value="{{ interview.interviewer or '' }}">
+    </div>
+    <div class="col-md-3 d-flex gap-2">
+        <div class="flex-grow-1">
+            <label class="form-label small">Notes</label>
+            <input type="text" class="form-control form-control-sm" name="round_notes" value="{{ interview.notes or '' }}">
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-danger remove-round" title="Remove round"><i class="bi bi-x-lg"></i></button>
+    </div>
+</div>
+{%- endmacro %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('applications') }}">Applications</a></li>
+        <li class="breadcrumb-item active">{{ 'Edit' if editing else 'Add' }}</li>
+    </ol>
+</nav>
+
+{% if not jobs %}
+<div class="alert alert-warning">
+    You need at least one job before logging an application.
+    <a href="{{ url_for('add_job') }}" class="alert-link">Add a job first</a>.
+</div>
+{% endif %}
+
+<div class="card shadow-sm form-card">
+    <div class="card-header bg-white">
+        <h1 class="h4 mb-0">{{ 'Edit application' if editing else 'Log an application' }}</h1>
+    </div>
+    <div class="card-body">
+        <form method="post" novalidate>
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <label for="job_id" class="form-label">Job <span class="text-danger">*</span></label>
+                    <select class="form-select" id="job_id" name="job_id" required>
+                        <option value="">Choose a job...</option>
+                        {% for j in jobs %}
+                        <option value="{{ j.job_id }}" {% if form.job_id|string == j.job_id|string %}selected{% endif %}>{{ j.job_title }} @ {{ j.company_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="application_date" class="form-label">Application date <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" id="application_date" name="application_date" required
+                           value="{{ form.application_date or '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
+                    <select class="form-select" id="status" name="status" required>
+                        {% for s in statuses %}
+                        <option value="{{ s }}" {% if form.status == s %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="resume_version" class="form-label">Resume version</label>
+                    <input type="text" class="form-control" id="resume_version" name="resume_version" maxlength="50"
+                           value="{{ form.resume_version or '' }}" placeholder="e.g. v3-software">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="cover_letter_sent" name="cover_letter_sent"
+                               {% if form.cover_letter_sent %}checked{% endif %}>
+                        <label class="form-check-label" for="cover_letter_sent">Cover letter sent</label>
+                    </div>
+                </div>
+            </div>
+
+            <fieldset class="json-fieldset mt-4">
+                <legend>Interview rounds <span class="badge text-bg-light border fw-normal">stored as JSON</span></legend>
+                <datalist id="interviewTypes">
+                    {% for t in interview_types %}<option value="{{ t }}">{% endfor %}
+                </datalist>
+                <div id="interviewRounds">
+                    {% for interview in form.rounds or [] %}
+                    {{ round_row(interview, interview_types) }}
+                    {% endfor %}
+                </div>
+                <p id="noRounds" class="text-muted small mb-2 {% if form.rounds %}d-none{% endif %}">No interview rounds yet.</p>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="addRound"><i class="bi bi-plus-lg"></i> Add interview round</button>
+                <template id="roundTemplate">{{ round_row({}, interview_types) }}</template>
+            </fieldset>
+
+            <div class="mt-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary" {% if not jobs %}disabled{% endif %}><i class="bi bi-check-lg"></i> {{ 'Save changes' if editing else 'Add application' }}</button>
+                <a href="{{ url_for('application_detail', application_id=application_id) if editing else url_for('applications') }}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const container = document.getElementById("interviewRounds");
+        const template = document.getElementById("roundTemplate");
+        const emptyNote = document.getElementById("noRounds");
+
+        function refreshEmptyNote() {
+            emptyNote.classList.toggle("d-none", container.children.length > 0);
+        }
+
+        document.getElementById("addRound").addEventListener("click", function () {
+            container.appendChild(template.content.cloneNode(true));
+            refreshEmptyNote();
+        });
+
+        container.addEventListener("click", function (event) {
+            const button = event.target.closest(".remove-round");
+            if (button) {
+                button.closest(".interview-round").remove();
+                refreshEmptyNote();
+            }
+        });
+    })();
+</script>
+{% endblock %}

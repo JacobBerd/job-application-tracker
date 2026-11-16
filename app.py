@@ -2,7 +2,7 @@
 
 import os
 import re
-from datetime import date, datetime
+from datetime import date
 
 import mysql.connector
 from flask import Flask, abort, flash, redirect, render_template, request, url_for
@@ -265,7 +265,9 @@ def jobs():
 @app.route("/jobs/<int:job_id>")
 def job_detail(job_id):
     job = get_or_404(db.get_job, job_id)
-    return render_template("job_detail.html", job=job)
+    return render_template(
+        "job_detail.html", job=job, applications=db.get_applications(job_id=job_id)
+    )
 
 
 @app.route("/jobs/add", methods=["GET", "POST"])
@@ -308,6 +310,134 @@ def delete_job(job_id):
     db.delete_job(job_id)
     flash(f"Job \"{job['job_title']}\" and its applications were deleted.", "success")
     return redirect(url_for("jobs"))
+
+
+# ---------------------------------------------------------------
+# Applications
+# ---------------------------------------------------------------
+INTERVIEW_TYPES = (
+    "Phone Screen", "Video", "Technical", "Behavioral", "Onsite", "Panel", "Final", "Other",
+)
+
+
+def parse_interview_rounds(form, errors):
+    """Collect the repeated round_* form fields into a list of interview round dicts."""
+    rows = zip(
+        form.getlist("round_date"),
+        form.getlist("round_type"),
+        form.getlist("round_interviewer"),
+        form.getlist("round_notes"),
+    )
+    rounds = []
+    for number, (raw_date, raw_type, interviewer, notes) in enumerate(rows, start=1):
+        interview = {
+            "date": raw_date.strip(),
+            "type": raw_type.strip(),
+            "interviewer": interviewer.strip(),
+            "notes": notes.strip(),
+        }
+        if not any(interview.values()):
+            continue
+        label = f"Interview round {number}"
+        parse_date(errors, f"{label} date", interview["date"] or None, required=True)
+        if not interview["type"]:
+            errors.append(f"{label} type is required.")
+        elif len(interview["type"]) > 50:
+            errors.append(f"{label} type must be 50 characters or fewer.")
+        if len(interview["interviewer"]) > 100:
+            errors.append(f"{label} interviewer must be 100 characters or fewer.")
+        rounds.append(interview)
+    rounds.sort(key=lambda r: r["date"])
+    return rounds
+
+
+def validate_application(form, job_options):
+    errors = []
+    data = {
+        "job_id": parse_foreign_key(errors, "Job", clean(form, "job_id"), job_options, "job_id"),
+        "application_date": parse_date(
+            errors, "Application date", clean(form, "application_date"), required=True
+        ),
+        "status": parse_choice(errors, "Status", clean(form, "status"), db.APPLICATION_STATUSES),
+        "resume_version": clean(form, "resume_version"),
+        "cover_letter_sent": form.get("cover_letter_sent") == "on",
+    }
+    check_lengths(errors, data, {"resume_version": ("Resume version", 50)})
+    data["rounds"] = parse_interview_rounds(form, errors)
+    data["interview_data"] = {"rounds": data["rounds"]} if data["rounds"] else None
+    return data, errors
+
+
+def render_application_form(form, application_id):
+    return render_template(
+        "application_form.html",
+        form=form,
+        application_id=application_id,
+        jobs=db.get_job_options(),
+        statuses=db.APPLICATION_STATUSES,
+        interview_types=INTERVIEW_TYPES,
+    )
+
+
+@app.route("/applications")
+def applications():
+    filters = {
+        "search": request.args.get("q", "").strip(),
+        "status": request.args.get("status", "").strip(),
+    }
+    return render_template(
+        "applications.html",
+        applications=db.get_applications(**filters),
+        filters=filters,
+        statuses=db.APPLICATION_STATUSES,
+    )
+
+
+@app.route("/applications/<int:application_id>")
+def application_detail(application_id):
+    application = get_or_404(db.get_application, application_id)
+    return render_template("application_detail.html", application=application)
+
+
+@app.route("/applications/add", methods=["GET", "POST"])
+def add_application():
+    form = {
+        "job_id": request.args.get("job_id", type=int),
+        "application_date": date.today().isoformat(),
+        "status": "Applied",
+    }
+    if request.method == "POST":
+        form, errors = validate_application(request.form, db.get_job_options())
+        if not errors:
+            application_id = db.add_application(form)
+            flash("Application added.", "success")
+            return redirect(url_for("application_detail", application_id=application_id))
+        show_errors(errors)
+    return render_application_form(form, None)
+
+
+@app.route("/applications/<int:application_id>/edit", methods=["GET", "POST"])
+def edit_application(application_id):
+    form = get_or_404(db.get_application, application_id)
+    if request.method == "POST":
+        form, errors = validate_application(request.form, db.get_job_options())
+        if not errors:
+            db.update_application(application_id, form)
+            flash("Application updated.", "success")
+            return redirect(url_for("application_detail", application_id=application_id))
+        show_errors(errors)
+    return render_application_form(form, application_id)
+
+
+@app.route("/applications/<int:application_id>/delete", methods=["POST"])
+def delete_application(application_id):
+    application = get_or_404(db.get_application, application_id)
+    db.delete_application(application_id)
+    flash(
+        f"Application for \"{application['job_title']}\" at {application['company_name']} was deleted.",
+        "success",
+    )
+    return redirect(url_for("applications"))
 
 
 # ---------------------------------------------------------------

@@ -211,3 +211,73 @@ def update_job(job_id, data):
 
 def delete_job(job_id):
     execute("DELETE FROM jobs WHERE job_id = %s", (job_id,))
+
+
+# ---------------------------------------------------------------
+# Applications
+# ---------------------------------------------------------------
+APPLICATION_STATUSES = ("Applied", "Screening", "Interview", "Offer", "Rejected", "Withdrawn")
+APPLICATION_FIELDS = (
+    "job_id", "application_date", "status", "resume_version",
+    "cover_letter_sent", "interview_data",
+)
+APPLICATION_SELECT = """
+    SELECT a.*, j.job_title, j.company_id, c.company_name
+    FROM applications a
+    JOIN jobs j ON j.job_id = a.job_id
+    JOIN companies c ON c.company_id = j.company_id
+"""
+
+
+def _with_interviews(application):
+    """Parse interview_data JSON and expose its rounds list as application['rounds']."""
+    interview_data = parse_json(application.get("interview_data"), {})
+    if not isinstance(interview_data, dict):
+        interview_data = {}
+    rounds = interview_data.get("rounds")
+    application["interview_data"] = interview_data
+    application["rounds"] = rounds if isinstance(rounds, list) else []
+    application["cover_letter_sent"] = bool(application.get("cover_letter_sent"))
+    return application
+
+
+def _application_values(data):
+    return {**data, "interview_data": to_json(data.get("interview_data"))}
+
+
+def get_applications(status=None, job_id=None, search=None):
+    conditions, params = [], []
+    if status:
+        conditions.append("a.status = %s")
+        params.append(status)
+    if job_id:
+        conditions.append("a.job_id = %s")
+        params.append(job_id)
+    if search:
+        conditions.append("(j.job_title LIKE %s OR c.company_name LIKE %s)")
+        params += [f"%{search}%"] * 2
+    sql = APPLICATION_SELECT
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
+    sql += " ORDER BY a.application_date DESC, a.application_id DESC"
+    return [_with_interviews(a) for a in query_all(sql, tuple(params))]
+
+
+def get_application(application_id):
+    application = query_one(APPLICATION_SELECT + " WHERE a.application_id = %s", (application_id,))
+    return _with_interviews(application) if application else None
+
+
+def add_application(data):
+    return _insert("applications", APPLICATION_FIELDS, _application_values(data))
+
+
+def update_application(application_id, data):
+    _update(
+        "applications", "application_id", application_id,
+        APPLICATION_FIELDS, _application_values(data),
+    )
+
+
+def delete_application(application_id):
+    execute("DELETE FROM applications WHERE application_id = %s", (application_id,))
