@@ -1,0 +1,19 @@
+{% macro delete_button(url, name, warning='', label='') -%}
+<button type="button" class="btn btn-sm btn-outline-danger" title="Delete"
+        data-bs-toggle="modal" data-bs-target="#deleteModal"
+        data-delete-url="{{ url }}" data-delete-name="{{ name }}" data-delete-warning="{{ warning }}">
+    <i class="bi bi-trash"></i>{% if label %} {{ label }}{% endif %}
+</button>
+{%- endmacro %}
+
+{% macro status_badge(status) -%}
+<span class="badge status-badge status-{{ status|lower }}">{{ status }}</span>
+{%- endmacro %}
+
+{% macro external_link(url, text=None) -%}
+{% if url %}<a href="{{ url }}" target="_blank" rel="noopener">{{ text or url }} <i class="bi bi-box-arrow-up-right small"></i></a>{% else %}<span class="text-muted">&mdash;</span>{% endif %}
+{%- endmacro %}
+
+{% macro or_dash(value) -%}
+{% if value %}{{ value }}{% else %}<span class="text-muted">&mdash;</span>{% endif %}
+{%- endmacro %}

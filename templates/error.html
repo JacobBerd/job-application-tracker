@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="card shadow-sm mx-auto" style="max-width: 640px;">
+    <div class="card-body text-center p-5">
+        <i class="bi bi-exclamation-octagon display-4 text-danger"></i>
+        <h1 class="h3 mt-3">{{ title }}</h1>
+        <p class="text-muted">{{ message }}</p>
+        {% if detail %}<pre class="text-start small bg-light p-3 rounded">{{ detail }}</pre>{% endif %}
+        <a href="{{ url_for('dashboard') }}" class="btn btn-primary mt-2">Back to dashboard</a>
+    </div>
+</div>
+{% endblock %}
