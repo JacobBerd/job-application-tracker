@@ -7,22 +7,22 @@
 <div class="interview-round row g-2 align-items-end">
     <div class="col-md-3">
         <label class="form-label small">Date <span class="text-danger">*</span></label>
-        <input type="date" class="form-control form-control-sm" name="round_date" value="{{ interview.date or '' }}">
+        <input type="date" class="form-control form-control-sm" name="round_date" aria-label="Interview date" value="{{ interview.date or '' }}">
     </div>
     <div class="col-md-3">
         <label class="form-label small">Type <span class="text-danger">*</span></label>
-        <input type="text" class="form-control form-control-sm" name="round_type" list="interviewTypes" maxlength="50"
+        <input type="text" class="form-control form-control-sm" name="round_type" list="interviewTypes" maxlength="50" aria-label="Interview type"
                value="{{ interview.type or '' }}" placeholder="Phone Screen">
     </div>
     <div class="col-md-3">
         <label class="form-label small">Interviewer</label>
-        <input type="text" class="form-control form-control-sm" name="round_interviewer" maxlength="100"
+        <input type="text" class="form-control form-control-sm" name="round_interviewer" maxlength="100" aria-label="Interviewer"
                value="{{ interview.interviewer or '' }}">
     </div>
     <div class="col-md-3 d-flex gap-2">
         <div class="flex-grow-1">
             <label class="form-label small">Notes</label>
-            <input type="text" class="form-control form-control-sm" name="round_notes" value="{{ interview.notes or '' }}">
+            <input type="text" class="form-control form-control-sm" name="round_notes" aria-label="Interview notes" value="{{ interview.notes or '' }}">
         </div>
         <button type="button" class="btn btn-sm btn-outline-danger remove-round" title="Remove round"><i class="bi bi-x-lg"></i></button>
     </div>

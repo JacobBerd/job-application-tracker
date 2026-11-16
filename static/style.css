@@ -129,6 +129,13 @@ a:hover {
     height: 1rem;
 }
 
+.status-progress .status-applied   { background-color: #4c6ef5; }
+.status-progress .status-screening { background-color: #7950f2; }
+.status-progress .status-interview { background-color: #fab005; }
+.status-progress .status-offer     { background-color: #40c057; }
+.status-progress .status-rejected  { background-color: #fa5252; }
+.status-progress .status-withdrawn { background-color: #adb5bd; }
+
 .status-tile {
     display: flex;
     align-items: center;
