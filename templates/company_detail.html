@@ -61,6 +61,28 @@
             <div class="card-body text-muted">No jobs recorded for this company yet.</div>
             {% endif %}
         </div>
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">Contacts ({{ contacts|length }})</span>
+                <a href="{{ url_for('add_contact', company_id=company.company_id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-lg"></i> Add contact</a>
+            </div>
+            {% if contacts %}
+            <ul class="list-group list-group-flush">
+                {% for ct in contacts %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <a href="{{ url_for('contact_detail', contact_id=ct.contact_id) }}" class="fw-semibold">{{ ct.contact_name }}</a>
+                        <div class="small text-muted">{{ ct.title or '' }}</div>
+                    </div>
+                    {% if ct.email %}<a href="mailto:{{ ct.email }}" class="small">{{ ct.email }}</a>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="card-body text-muted">No contacts saved for this company yet.</div>
+            {% endif %}
+        </div>
     </div>
 </div>
 {% endblock %}

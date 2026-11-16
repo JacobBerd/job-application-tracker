@@ -281,3 +281,49 @@ def update_application(application_id, data):
 
 def delete_application(application_id):
     execute("DELETE FROM applications WHERE application_id = %s", (application_id,))
+
+
+# ---------------------------------------------------------------
+# Contacts
+# ---------------------------------------------------------------
+CONTACT_FIELDS = (
+    "company_id", "contact_name", "title", "email", "phone", "linkedin_url", "notes",
+)
+CONTACT_SELECT = """
+    SELECT ct.*, c.company_name
+    FROM contacts ct
+    JOIN companies c ON c.company_id = ct.company_id
+"""
+
+
+def get_contacts(company_id=None, search=None):
+    conditions, params = [], []
+    if company_id:
+        conditions.append("ct.company_id = %s")
+        params.append(company_id)
+    if search:
+        conditions.append(
+            "(ct.contact_name LIKE %s OR ct.title LIKE %s OR ct.email LIKE %s OR c.company_name LIKE %s)"
+        )
+        params += [f"%{search}%"] * 4
+    sql = CONTACT_SELECT
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
+    sql += " ORDER BY ct.contact_name"
+    return query_all(sql, tuple(params))
+
+
+def get_contact(contact_id):
+    return query_one(CONTACT_SELECT + " WHERE ct.contact_id = %s", (contact_id,))
+
+
+def add_contact(data):
+    return _insert("contacts", CONTACT_FIELDS, data)
+
+
+def update_contact(contact_id, data):
+    _update("contacts", "contact_id", contact_id, CONTACT_FIELDS, data)
+
+
+def delete_contact(contact_id):
+    execute("DELETE FROM contacts WHERE contact_id = %s", (contact_id,))

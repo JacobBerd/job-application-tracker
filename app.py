@@ -13,6 +13,8 @@ app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-key")
 
 URL_RE = re.compile(r"^https?://[^\s/$.?#].[^\s]*$", re.IGNORECASE)
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
+PHONE_RE = re.compile(r"^[0-9+().\-\s]+$")
 
 
 # ---------------------------------------------------------------
@@ -152,7 +154,10 @@ def companies():
 def company_detail(company_id):
     company = get_or_404(db.get_company, company_id)
     return render_template(
-        "company_detail.html", company=company, jobs=db.get_jobs(company_id=company_id)
+        "company_detail.html",
+        company=company,
+        jobs=db.get_jobs(company_id=company_id),
+        contacts=db.get_contacts(company_id=company_id),
     )
 
 
@@ -438,6 +443,96 @@ def delete_application(application_id):
         "success",
     )
     return redirect(url_for("applications"))
+
+
+# ---------------------------------------------------------------
+# Contacts
+# ---------------------------------------------------------------
+def validate_contact(form, company_options):
+    errors = []
+    data = {field: clean(form, field) for field in db.CONTACT_FIELDS}
+    data["company_id"] = parse_foreign_key(
+        errors, "Company", data["company_id"], company_options, "company_id"
+    )
+    if not data["contact_name"]:
+        errors.append("Contact name is required.")
+    check_lengths(errors, data, {
+        "contact_name": ("Contact name", 100),
+        "title": ("Title", 100),
+        "email": ("Email", 100),
+        "phone": ("Phone", 20),
+        "linkedin_url": ("LinkedIn URL", 200),
+    })
+    if data["email"] and not EMAIL_RE.match(data["email"]):
+        errors.append("Email must be a valid address like name@example.com.")
+    if data["phone"] and (
+        not PHONE_RE.match(data["phone"]) or sum(ch.isdigit() for ch in data["phone"]) < 7
+    ):
+        errors.append("Phone must contain at least 7 digits and only digits, spaces, or + ( ) - .")
+    check_url(errors, "LinkedIn URL", data["linkedin_url"])
+    return data, errors
+
+
+def render_contact_form(form, contact_id, company_options):
+    return render_template(
+        "contact_form.html", form=form, contact_id=contact_id, companies=company_options
+    )
+
+
+@app.route("/contacts")
+def contacts():
+    filters = {
+        "search": request.args.get("q", "").strip(),
+        "company_id": request.args.get("company", type=int),
+    }
+    return render_template(
+        "contacts.html",
+        contacts=db.get_contacts(**filters),
+        filters=filters,
+        companies=db.get_company_options(),
+    )
+
+
+@app.route("/contacts/<int:contact_id>")
+def contact_detail(contact_id):
+    contact = get_or_404(db.get_contact, contact_id)
+    return render_template("contact_detail.html", contact=contact)
+
+
+@app.route("/contacts/add", methods=["GET", "POST"])
+def add_contact():
+    company_options = db.get_company_options()
+    form = {"company_id": request.args.get("company_id", type=int)}
+    if request.method == "POST":
+        form, errors = validate_contact(request.form, company_options)
+        if not errors:
+            contact_id = db.add_contact(form)
+            flash(f"Contact \"{form['contact_name']}\" added.", "success")
+            return redirect(url_for("contact_detail", contact_id=contact_id))
+        show_errors(errors)
+    return render_contact_form(form, None, company_options)
+
+
+@app.route("/contacts/<int:contact_id>/edit", methods=["GET", "POST"])
+def edit_contact(contact_id):
+    form = get_or_404(db.get_contact, contact_id)
+    company_options = db.get_company_options()
+    if request.method == "POST":
+        form, errors = validate_contact(request.form, company_options)
+        if not errors:
+            db.update_contact(contact_id, form)
+            flash(f"Contact \"{form['contact_name']}\" updated.", "success")
+            return redirect(url_for("contact_detail", contact_id=contact_id))
+        show_errors(errors)
+    return render_contact_form(form, contact_id, company_options)
+
+
+@app.route("/contacts/<int:contact_id>/delete", methods=["POST"])
+def delete_contact(contact_id):
+    contact = get_or_404(db.get_contact, contact_id)
+    db.delete_contact(contact_id)
+    flash(f"Contact \"{contact['contact_name']}\" was deleted.", "success")
+    return redirect(url_for("contacts"))
 
 
 # ---------------------------------------------------------------
