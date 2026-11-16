@@ -57,6 +57,55 @@ def check_url(errors, label, value):
         errors.append(f"{label} must be a full URL starting with http:// or https://.")
 
 
+def parse_int(errors, label, raw, minimum=0, maximum=10_000_000):
+    """Parse an optional whole number; on failure record an error and return the raw text."""
+    if raw is None:
+        return None
+    try:
+        value = int(raw.replace(",", "").replace("$", ""))
+    except ValueError:
+        errors.append(f"{label} must be a whole number.")
+        return raw
+    if not minimum <= value <= maximum:
+        errors.append(f"{label} must be between {minimum:,} and {maximum:,}.")
+    return value
+
+
+def parse_date(errors, label, raw, required=False):
+    """Parse a YYYY-MM-DD date; on failure record an error and return the raw text."""
+    if raw is None:
+        if required:
+            errors.append(f"{label} is required.")
+        return None
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        errors.append(f"{label} must be a valid date (YYYY-MM-DD).")
+        return raw
+
+
+def parse_choice(errors, label, raw, choices, required=True):
+    if raw is None:
+        if required:
+            errors.append(f"{label} is required.")
+        return None
+    if raw not in choices:
+        errors.append(f"{label} must be one of: {', '.join(choices)}.")
+    return raw
+
+
+def parse_foreign_key(errors, label, raw, options, key):
+    """Validate that raw is the id of one of the dropdown options."""
+    if raw is None:
+        errors.append(f"{label} is required.")
+        return None
+    valid_ids = {option[key] for option in options}
+    if not raw.isdigit() or int(raw) not in valid_ids:
+        errors.append(f"Please choose a valid {label.lower()}.")
+        return raw
+    return int(raw)
+
+
 def get_or_404(fetch, record_id):
     record = fetch(record_id)
     if record is None:
@@ -102,7 +151,9 @@ def companies():
 @app.route("/companies/<int:company_id>")
 def company_detail(company_id):
     company = get_or_404(db.get_company, company_id)
-    return render_template("company_detail.html", company=company)
+    return render_template(
+        "company_detail.html", company=company, jobs=db.get_jobs(company_id=company_id)
+    )
 
 
 @app.route("/companies/add", methods=["GET", "POST"])
@@ -137,6 +188,126 @@ def delete_company(company_id):
     db.delete_company(company_id)
     flash(f"Company \"{company['company_name']}\" and its related records were deleted.", "success")
     return redirect(url_for("companies"))
+
+
+# ---------------------------------------------------------------
+# Jobs
+# ---------------------------------------------------------------
+def validate_job(form, company_options):
+    errors = []
+    data = {
+        "company_id": parse_foreign_key(
+            errors, "Company", clean(form, "company_id"), company_options, "company_id"
+        ),
+        "job_title": clean(form, "job_title"),
+        "job_type": parse_choice(errors, "Job type", clean(form, "job_type"), db.JOB_TYPES),
+        "salary_min": parse_int(errors, "Minimum salary", clean(form, "salary_min")),
+        "salary_max": parse_int(errors, "Maximum salary", clean(form, "salary_max")),
+        "job_url": clean(form, "job_url"),
+        "date_posted": parse_date(errors, "Date posted", clean(form, "date_posted")),
+        "skills_text": clean(form, "skills_text"),
+        "experience_years": parse_int(
+            errors, "Years of experience", clean(form, "experience_years"), maximum=50
+        ),
+        "education": clean(form, "education"),
+    }
+    if not data["job_title"]:
+        errors.append("Job title is required.")
+    check_lengths(errors, data, {
+        "job_title": ("Job title", 100),
+        "job_url": ("Job URL", 300),
+        "education": ("Education", 100),
+    })
+    check_url(errors, "Job URL", data["job_url"])
+    if (isinstance(data["salary_min"], int) and isinstance(data["salary_max"], int)
+            and data["salary_min"] > data["salary_max"]):
+        errors.append("Minimum salary cannot be greater than maximum salary.")
+
+    skills = db.split_skills(data["skills_text"])
+    if any(len(skill) > 50 for skill in skills):
+        errors.append("Each skill must be 50 characters or fewer.")
+    requirements = {"skills": skills}
+    if isinstance(data["experience_years"], int):
+        requirements["experience_years"] = data["experience_years"]
+    if data["education"]:
+        requirements["education"] = data["education"]
+    data["requirements"] = requirements
+    return data, errors
+
+
+def job_to_form(job):
+    """Flatten a job's requirements JSON into the separate form fields."""
+    requirements = job["requirements"]
+    return {
+        **job,
+        "skills_text": ", ".join(job["skills"]),
+        "experience_years": requirements.get("experience_years"),
+        "education": requirements.get("education"),
+    }
+
+
+@app.route("/jobs")
+def jobs():
+    filters = {
+        "search": request.args.get("q", "").strip(),
+        "job_type": request.args.get("type", "").strip(),
+        "company_id": request.args.get("company", type=int),
+    }
+    return render_template(
+        "jobs.html",
+        jobs=db.get_jobs(**filters),
+        filters=filters,
+        job_types=db.JOB_TYPES,
+        companies=db.get_company_options(),
+    )
+
+
+@app.route("/jobs/<int:job_id>")
+def job_detail(job_id):
+    job = get_or_404(db.get_job, job_id)
+    return render_template("job_detail.html", job=job)
+
+
+@app.route("/jobs/add", methods=["GET", "POST"])
+def add_job():
+    company_options = db.get_company_options()
+    form = {"company_id": request.args.get("company_id", type=int), "job_type": "Full-time"}
+    if request.method == "POST":
+        form, errors = validate_job(request.form, company_options)
+        if not errors:
+            job_id = db.add_job(form)
+            flash(f"Job \"{form['job_title']}\" added.", "success")
+            return redirect(url_for("job_detail", job_id=job_id))
+        show_errors(errors)
+    return render_template(
+        "job_form.html", form=form, job_id=None,
+        companies=company_options, job_types=db.JOB_TYPES,
+    )
+
+
+@app.route("/jobs/<int:job_id>/edit", methods=["GET", "POST"])
+def edit_job(job_id):
+    form = job_to_form(get_or_404(db.get_job, job_id))
+    company_options = db.get_company_options()
+    if request.method == "POST":
+        form, errors = validate_job(request.form, company_options)
+        if not errors:
+            db.update_job(job_id, form)
+            flash(f"Job \"{form['job_title']}\" updated.", "success")
+            return redirect(url_for("job_detail", job_id=job_id))
+        show_errors(errors)
+    return render_template(
+        "job_form.html", form=form, job_id=job_id,
+        companies=company_options, job_types=db.JOB_TYPES,
+    )
+
+
+@app.route("/jobs/<int:job_id>/delete", methods=["POST"])
+def delete_job(job_id):
+    job = get_or_404(db.get_job, job_id)
+    db.delete_job(job_id)
+    flash(f"Job \"{job['job_title']}\" and its applications were deleted.", "success")
+    return redirect(url_for("jobs"))
 
 
 # ---------------------------------------------------------------

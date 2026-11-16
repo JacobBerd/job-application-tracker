@@ -108,3 +108,46 @@ a:hover {
 .notes {
     white-space: pre-wrap;
 }
+
+/* Skills and badges */
+.skill-chip {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    margin: 0 0.25rem 0.25rem 0;
+    font-size: 0.8rem;
+    border-radius: 999px;
+    background-color: #e8eefc;
+    color: var(--app-primary-dark);
+    border: 1px solid #cdd9fa;
+}
+
+.skill-chip-more {
+    background-color: #f1f3f5;
+    color: #6c757d;
+    border-color: #dee2e6;
+}
+
+.job-type-badge {
+    background-color: #eef2f7;
+    color: #495057;
+    border: 1px solid #dee2e6;
+    font-weight: 500;
+    vertical-align: middle;
+}
+
+/* JSON-backed form sections */
+.json-fieldset {
+    border: 1px dashed #cdd9fa;
+    border-radius: 0.5rem;
+    padding: 1rem 1.25rem 1.25rem;
+    background-color: #fafbff;
+}
+
+.json-fieldset legend {
+    float: none;
+    width: auto;
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 0 0.5rem;
+    margin-bottom: 0;
+}

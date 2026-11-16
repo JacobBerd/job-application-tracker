@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import delete_button, external_link, or_dash %}
+{% from "_macros.html" import delete_button, external_link, or_dash, salary_range, job_type_badge %}
 {% set active_page = "companies" %}
 {% block title %}{{ company.company_name }}{% endblock %}
 {% block content %}
@@ -36,6 +36,30 @@
                     <dd class="notes">{{ or_dash(company.notes) }}</dd>
                 </dl>
             </div>
+        </div>
+    </div>
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">Jobs ({{ jobs|length }})</span>
+                <a href="{{ url_for('add_job', company_id=company.company_id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-lg"></i> Add job</a>
+            </div>
+            {% if jobs %}
+            <ul class="list-group list-group-flush">
+                {% for j in jobs %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <a href="{{ url_for('job_detail', job_id=j.job_id) }}" class="fw-semibold">{{ j.job_title }}</a>
+                        {{ job_type_badge(j.job_type) }}
+                        <div class="small text-muted">{{ salary_range(j.salary_min, j.salary_max) }}</div>
+                    </div>
+                    <span class="small text-muted">{{ j.application_count }} application{{ '' if j.application_count == 1 else 's' }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <div class="card-body text-muted">No jobs recorded for this company yet.</div>
+            {% endif %}
         </div>
     </div>
 </div>

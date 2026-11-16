@@ -14,6 +14,24 @@
 {% if url %}<a href="{{ url }}" target="_blank" rel="noopener">{{ text or url }} <i class="bi bi-box-arrow-up-right small"></i></a>{% else %}<span class="text-muted">&mdash;</span>{% endif %}
 {%- endmacro %}
 
+{% macro salary_range(low, high) -%}
+{% if low and high %}{{ low|money }} &ndash; {{ high|money }}
+{% elif low %}From {{ low|money }}
+{% elif high %}Up to {{ high|money }}
+{% else %}<span class="text-muted">&mdash;</span>{% endif %}
+{%- endmacro %}
+
+{% macro skill_chips(skills, limit=None) -%}
+{% set shown = skills[:limit] if limit else skills %}
+{% for skill in shown %}<span class="skill-chip">{{ skill }}</span>{% endfor %}
+{% if limit and skills|length > limit %}<span class="skill-chip skill-chip-more">+{{ skills|length - limit }}</span>{% endif %}
+{% if not skills %}<span class="text-muted">&mdash;</span>{% endif %}
+{%- endmacro %}
+
+{% macro job_type_badge(job_type) -%}
+{% if job_type %}<span class="badge job-type-badge">{{ job_type }}</span>{% endif %}
+{%- endmacro %}
+
 {% macro or_dash(value) -%}
 {% if value %}{{ value }}{% else %}<span class="text-muted">&mdash;</span>{% endif %}
 {%- endmacro %}

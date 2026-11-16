@@ -68,6 +68,17 @@ def to_json(data):
     return None if data is None else json.dumps(data)
 
 
+def split_skills(text):
+    """Turn 'Python, SQL\\nFlask' into ['Python', 'SQL', 'Flask'], dropping blanks and duplicates."""
+    skills, seen = [], set()
+    for part in (text or "").replace("\n", ",").split(","):
+        skill = part.strip()
+        if skill and skill.lower() not in seen:
+            seen.add(skill.lower())
+            skills.append(skill)
+    return skills
+
+
 def _insert(table, fields, data):
     """Insert the given whitelisted fields from data into table; return the new id."""
     columns = ", ".join(fields)
@@ -125,3 +136,78 @@ def update_company(company_id, data):
 
 def delete_company(company_id):
     execute("DELETE FROM companies WHERE company_id = %s", (company_id,))
+
+
+# ---------------------------------------------------------------
+# Jobs
+# ---------------------------------------------------------------
+JOB_TYPES = ("Full-time", "Part-time", "Contract", "Internship")
+JOB_FIELDS = (
+    "company_id", "job_title", "job_type", "salary_min", "salary_max",
+    "job_url", "date_posted", "requirements",
+)
+JOB_SELECT = """
+    SELECT j.*, c.company_name,
+           (SELECT COUNT(*) FROM applications a WHERE a.job_id = j.job_id) AS application_count
+    FROM jobs j
+    JOIN companies c ON c.company_id = j.company_id
+"""
+
+
+def _with_requirements(job):
+    """Parse the requirements JSON and expose its skills list as job['skills']."""
+    requirements = parse_json(job.get("requirements"), {})
+    if not isinstance(requirements, dict):
+        requirements = {}
+    skills = requirements.get("skills")
+    job["requirements"] = requirements
+    job["skills"] = [str(s) for s in skills] if isinstance(skills, list) else []
+    return job
+
+
+def _job_values(data):
+    return {**data, "requirements": to_json(data.get("requirements"))}
+
+
+def get_jobs(company_id=None, job_type=None, search=None):
+    conditions, params = [], []
+    if company_id:
+        conditions.append("j.company_id = %s")
+        params.append(company_id)
+    if job_type:
+        conditions.append("j.job_type = %s")
+        params.append(job_type)
+    if search:
+        conditions.append("(j.job_title LIKE %s OR c.company_name LIKE %s)")
+        params += [f"%{search}%"] * 2
+    sql = JOB_SELECT
+    if conditions:
+        sql += " WHERE " + " AND ".join(conditions)
+    sql += " ORDER BY j.date_posted DESC, j.job_title"
+    return [_with_requirements(job) for job in query_all(sql, tuple(params))]
+
+
+def get_job(job_id):
+    job = query_one(JOB_SELECT + " WHERE j.job_id = %s", (job_id,))
+    return _with_requirements(job) if job else None
+
+
+def get_job_options():
+    """Minimal list for dropdowns, labelled 'Title @ Company'."""
+    return query_all("""
+        SELECT j.job_id, j.job_title, c.company_name
+        FROM jobs j JOIN companies c ON c.company_id = j.company_id
+        ORDER BY c.company_name, j.job_title
+    """)
+
+
+def add_job(data):
+    return _insert("jobs", JOB_FIELDS, _job_values(data))
+
+
+def update_job(job_id, data):
+    _update("jobs", "job_id", job_id, JOB_FIELDS, _job_values(data))
+
+
+def delete_job(job_id):
+    execute("DELETE FROM jobs WHERE job_id = %s", (job_id,))

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% from "_macros.html" import delete_button, external_link, salary_range, skill_chips, job_type_badge, or_dash %}
+{% set active_page = "jobs" %}
+{% block title %}{{ job.job_title }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('jobs') }}">Jobs</a></li>
+        <li class="breadcrumb-item active">{{ job.job_title }}</li>
+    </ol>
+</nav>
+
+<div class="page-header">
+    <div>
+        <h1 class="h3 mb-1">{{ job.job_title }} {{ job_type_badge(job.job_type) }}</h1>
+        <p class="text-muted mb-0">at <a href="{{ url_for('company_detail', company_id=job.company_id) }}">{{ job.company_name }}</a></p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('edit_job', job_id=job.job_id) }}" class="btn btn-outline-primary"><i class="bi bi-pencil"></i> Edit</a>
+        {{ delete_button(url_for('delete_job', job_id=job.job_id), job.job_title ~ ' at ' ~ job.company_name,
+                         'This also deletes any applications for this job.', 'Delete') }}
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold">Job details</div>
+            <div class="card-body">
+                <dl class="detail-list mb-0">
+                    <dt>Salary range</dt>
+                    <dd>{{ salary_range(job.salary_min, job.salary_max) }}</dd>
+                    <dt>Date posted</dt>
+                    <dd>{{ or_dash(job.date_posted|nice_date) }}</dd>
+                    <dt>Job posting</dt>
+                    <dd class="text-break">{{ external_link(job.job_url) }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold">Requirements</div>
+            <div class="card-body">
+                <dl class="detail-list mb-0">
+                    <dt>Skills</dt>
+                    <dd>{{ skill_chips(job.skills) }}</dd>
+                    <dt>Experience</dt>
+                    <dd>
+                        {% if job.requirements.experience_years is defined and job.requirements.experience_years is not none %}
+                            {{ job.requirements.experience_years }} year{{ '' if job.requirements.experience_years == 1 else 's' }}
+                        {% else %}<span class="text-muted">&mdash;</span>{% endif %}
+                    </dd>
+                    <dt>Education</dt>
+                    <dd>{{ or_dash(job.requirements.education) }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
