@@ -4,6 +4,8 @@ A full-stack web application for tracking a job search: the companies you're int
 
 Built with **MySQL**, **Python / Flask**, and **HTML / CSS (Bootstrap 5)**.
 
+**Demo video:** [Download the project walkthrough (MP4)](https://github.com/JacobBerd/job-application-tracker/releases/download/v1.0/Job-aplication-tracker.mp4), which shows the client, server, and database. It's also listed on the [v1.0 release page](https://github.com/JacobBerd/job-application-tracker/releases/tag/v1.0).
+
 ## Quick start (about 5 minutes)
 
 You need **Python 3.10+** and a running **MySQL 8.0+** server. Run these commands from a terminal:
